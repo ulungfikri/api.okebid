@@ -1,0 +1,605 @@
+<?php
+
+if (!defined('BASEPATH'))
+    exit('No direct script access allowed');
+
+class M_common extends CI_Model
+{
+
+    public $table = 'users';
+    public $id = 'id_user';
+    public $order = 'DESC';
+
+    public $kpi = 'kpi';
+    public $id_kpi = 'id_kpi';
+
+    function __construct()
+    {
+        parent::__construct();
+    }
+
+    function m_aksi($data){ 
+        $d = $this->db->get_where('users',$data);
+
+        if(count($d->result())>0)
+        {
+            
+            $data["result"] = $d->num_rows();
+            $data["data"] = $d->row();
+            return $data;
+        }
+        else
+        {
+            $this->session->set_flashdata('result_login', 'Username atau Password yang anda masukkan salah.');
+            header('location:'.base_url().'login');
+        }
+    
+    }
+
+    // get all
+    function get_all()
+    {
+        $this->db->order_by($this->id, $this->order);
+        return $this->db->get($this->table)->result();
+    }
+
+    // get data by id
+    function get_by_id($id)
+    {
+        $this->db->where($this->id, $id);
+        return $this->db->get($this->table)->row();
+    }
+
+    function get_user_id($id_user){
+        $query = $this->db->query("select u.*,s.nama_subid,b.nama_bidang from users u
+                                  left join bidang as b on b.id_bidang=u.id_bidang
+                                  left join sub_bidang as s on s.id_subid=u.id_subid
+                                  where  u.id_user='$id_user' ");
+        return $query->row();
+    }
+   
+
+    // get data by id
+    function get_all_bidang()
+    {
+        $this->db->order_by('id_bidang','ASC');
+        return $this->db->get('bidang')->result();
+    }
+
+    function get_all_subid()
+    {
+        $this->db->order_by('id_subid','ASC');
+        return $this->db->get('sub_bidang')->result();
+    }
+
+    function get_proedur_level2($no)
+    {
+        $query = $this->db->query("select p.id_prosedur,p.nomor,p.revisi,p.berlaku,p.nama_prosedur,p.dokumen,sb.nama_subid from bpf b inner join master_prosedur p on b.id_prosedur=p.id_prosedur left join sub_bidang sb on p.id_subid=sb.id_subid where no_bpf='$no' order by p.nomor ASC ");
+        return $query->result();
+    }
+
+    function numrow_indikator($tahun)
+    {
+        $query = $this->db->query("Select id_indikator from indikatorcorp where tahun='$tahun' and status='1' ");
+        return $query->num_rows();
+    }
+
+    function laporanTahunan($num_row,$tahun)
+    {
+       $bc = $this->db->query(" select
+                   ifnull((SELECT round(sum(nilai_kpi),2) FROM  (kpi_corporate)WHERE((bulan=1)AND (tahun='$tahun') )),0) AS `Januari`,
+                    ifnull((SELECT round(sum(nilai_kpi),2) FROM  (kpi_corporate)WHERE((bulan=2)AND (tahun='$tahun') )),0) AS `Februari`,
+                    ifnull((SELECT round(sum(nilai_kpi),2) FROM  (kpi_corporate)WHERE((bulan=3)AND (tahun='$tahun') )),0) AS `Maret`,
+                    ifnull((SELECT round(sum(nilai_kpi),2) FROM  (kpi_corporate)WHERE((bulan=4)AND (tahun='$tahun') )),0) AS `April`,
+                    ifnull((SELECT round(sum(nilai_kpi),2) FROM  (kpi_corporate)WHERE((bulan=5)AND (tahun='$tahun') )),0) AS `Mei`,
+                    ifnull((SELECT round(sum(nilai_kpi),2) FROM  (kpi_corporate)WHERE((bulan=6)AND (tahun='$tahun') )),0) AS `Juni`,
+                    ifnull((SELECT round(sum(nilai_kpi),2) FROM  (kpi_corporate)WHERE((bulan=7)AND (tahun='$tahun') )),0) AS `Juli`,
+                    ifnull((SELECT round(sum(nilai_kpi),2) FROM  (kpi_corporate)WHERE((bulan=8)AND (tahun='$tahun') )),0) AS `Agustus`,
+                    ifnull((SELECT round(sum(nilai_kpi),2) FROM  (kpi_corporate)WHERE((bulan=9)AND (tahun='$tahun') )),0) AS `September`,
+                    ifnull((SELECT round(sum(nilai_kpi),2) FROM  (kpi_corporate)WHERE((bulan=10)AND (tahun='$tahun') )),0) AS `Oktober`,
+                    ifnull((SELECT round(sum(nilai_kpi),2) FROM  (kpi_corporate)WHERE((bulan=11)AND (tahun='$tahun') )),0) AS `November`,
+                    ifnull((SELECT round(sum(nilai_kpi),2) FROM  (kpi_corporate)WHERE((bulan=12)AND (tahun='$tahun') )),0) AS `Desember`
+
+                  from kpi_corporate GROUP BY tahun='$tahun' limit 1  ");
+        
+    return $bc;
+        
+    }
+
+    function indikatorcorp($tahun)
+    {
+        $query = $this->db->query("select i.*,k.target as target_kpi,k.realisasi,k.pencapaian from indikatorcorp i left join kpi_corporate k on i.id_indikator=k.id_indikator where i.tahun='$tahun' and i.status='1' group by i.id_indikator ");
+        return $query->result();
+    }
+
+    function target_indikatorcorp($indikator,$tahun)
+    {
+        $query = $this->db->query("select
+                   ifnull((SELECT round(target,2) as realisasi FROM  (kpi_corporate)WHERE((bulan=1)AND (tahun='$tahun') and id_indikator='$indikator')),0) AS `Januari`,
+                    ifnull((SELECT round(target,2) as target FROM  (kpi_corporate)WHERE((bulan=2)AND (tahun='$tahun') and  id_indikator='$indikator')),0) AS `Februari`,
+                    ifnull((SELECT round(target,2) as target FROM  (kpi_corporate)WHERE((bulan=3)AND (tahun='$tahun') and  id_indikator='$indikator')),0) AS `Maret`,
+                    ifnull((SELECT round(target,2) as target FROM  (kpi_corporate)WHERE((bulan=4)AND (tahun='$tahun') and  id_indikator='$indikator')),0) AS `April`,
+                    ifnull((SELECT round(target,2) as target FROM  (kpi_corporate)WHERE((bulan=5)AND (tahun='$tahun') and  id_indikator='$indikator')),0) AS `Mei`,
+                    ifnull((SELECT round(target,2) as target FROM  (kpi_corporate)WHERE((bulan=6)AND (tahun='$tahun') and  id_indikator='$indikator')),0) AS `Juni`,
+                    ifnull((SELECT round(target,2) as target FROM  (kpi_corporate)WHERE((bulan=7)AND (tahun='$tahun') and  id_indikator='$indikator')),0) AS `Juli`,
+                    ifnull((SELECT round(target,2) as target FROM  (kpi_corporate)WHERE((bulan=8)AND (tahun='$tahun') and  id_indikator='$indikator')),0) AS `Agustus`,
+                    ifnull((SELECT round(target,2) as target FROM  (kpi_corporate)WHERE((bulan=9)AND (tahun='$tahun') and  id_indikator='$indikator')),0) AS `September`,
+                    ifnull((SELECT round(target,2) as target FROM  (kpi_corporate)WHERE((bulan=10)AND (tahun='$tahun') and  id_indikator='$indikator')),0) AS `Oktober`,
+                    ifnull((SELECT round(target,2) as target FROM  (kpi_corporate)WHERE((bulan=11)AND (tahun='$tahun') and  id_indikator='$indikator')),0) AS `November`,
+                    ifnull((SELECT round(target,2) as target FROM  (kpi_corporate)WHERE((bulan=12)AND (tahun='$tahun') and  id_indikator='$indikator')),0) AS `Desember`
+
+                  from kpi_corporate GROUP BY tahun='$tahun' and id_indikator='$indikator'");
+        return $query->row_array();
+    }
+
+
+    function realisasi_indikatorcorp($indikator,$tahun)
+    {
+       $query = $this->db->query("select
+                    ifnull((SELECT round(realisasi,2) as realisasi FROM  (kpi_corporate)WHERE((bulan=1)AND (tahun='$tahun') and id_indikator='$indikator')),0) AS `Januari`,
+                    ifnull((SELECT round(realisasi,2) as realisasi FROM  (kpi_corporate)WHERE((bulan=2)AND (tahun='$tahun') and  id_indikator='$indikator')),0) AS `Februari`,
+                    ifnull((SELECT round(realisasi,2) as realisasi FROM  (kpi_corporate)WHERE((bulan=3)AND (tahun='$tahun') and  id_indikator='$indikator')),0) AS `Maret`,
+                    ifnull((SELECT round(realisasi,2) as realisasi FROM  (kpi_corporate)WHERE((bulan=4)AND (tahun='$tahun') and  id_indikator='$indikator')),0) AS `April`,
+                    ifnull((SELECT round(realisasi,2) as realisasi FROM  (kpi_corporate)WHERE((bulan=5)AND (tahun='$tahun') and  id_indikator='$indikator')),0) AS `Mei`,
+                    ifnull((SELECT round(realisasi,2) as realisasi FROM  (kpi_corporate)WHERE((bulan=6)AND (tahun='$tahun') and  id_indikator='$indikator')),0) AS `Juni`,
+                    ifnull((SELECT round(realisasi,2) as realisasi FROM  (kpi_corporate)WHERE((bulan=7)AND (tahun='$tahun') and  id_indikator='$indikator')),0) AS `Juli`,
+                    ifnull((SELECT round(realisasi,2) as realisasi FROM  (kpi_corporate)WHERE((bulan=8)AND (tahun='$tahun') and  id_indikator='$indikator')),0) AS `Agustus`,
+                    ifnull((SELECT round(realisasi,2) as realisasi FROM  (kpi_corporate)WHERE((bulan=9)AND (tahun='$tahun') and  id_indikator='$indikator')),0) AS `September`,
+                    ifnull((SELECT round(realisasi,2) as realisasi FROM  (kpi_corporate)WHERE((bulan=10)AND (tahun='$tahun') and  id_indikator='$indikator')),0) AS `Oktober`,
+                    ifnull((SELECT round(realisasi,2) as realisasi FROM  (kpi_corporate)WHERE((bulan=11)AND (tahun='$tahun') and  id_indikator='$indikator')),0) AS `November`,
+                    ifnull((SELECT round(realisasi,2) as realisasi FROM  (kpi_corporate)WHERE((bulan=12)AND (tahun='$tahun') and  id_indikator='$indikator')),0) AS `Desember`
+
+                  from kpi_corporate GROUP BY tahun='$tahun' and id_indikator='$indikator'  ");
+                 return $query->row_array();
+        }
+
+    function get_all_manual()
+    {
+        $this->db->order_by('id_manual', 'DESC');
+        return $this->db->get('manual')->result();
+    }
+    function get_all_prosedur()
+    {
+        $query=$this->db->query("SELECT mp.id_prosedur,mp.nomor,mp.nama_prosedur,mp.bobot,mp.status,mp.dokumen,sb.nama_subid from master_prosedur mp left join sub_bidang sb on mp.id_subid=sb.id_subid ");
+        return $query->result();
+    }
+    function get_all_ik()
+    {
+        $query=$this->db->query("SELECT id_ik,nomor,nama_ik,bobot,dokumen_ik from master_ik ");
+        return $query->result();
+    }
+    function get_all_form()
+    {
+        $query=$this->db->query("SELECT id_form,nomor_form,nama_form,dokumen_form from master_form ");
+        return $query->result();
+    }
+
+    function get_all_ik_staf($id_user)
+    {
+        $query=$this->db->query("select mi.*,di.id_user,p.nama_prosedur,p.nomor as nomor_pro from detail_ik di left join master_ik mi on di.id_ik=mi.id_ik inner join  master_prosedur p on mi.id_prosedur=p.id_prosedur where di.id_user='$id_user' ");
+        return $query->result();
+    }
+     function get_nilai_kpi_ik($id_user,$id_ik,$bulan,$tahun)
+    {
+        $query=$this->db->query("select * from kpi where id_user='$id_user' and id_ik='$id_ik' and month(tanggal)='$bulan' and year(tanggal)='$tahun' ");
+        return $query->row();
+    }
+
+    // insert data
+    function insert_kpi_staf($data)
+    {
+        $this->db->insert($this->kpi, $data);
+    }
+
+    // update data
+    function update_kpi_staf($id, $data)
+    {
+        $this->db->where($this->id_kpi, $id);
+        $this->db->update($this->kpi, $data);
+    }
+
+    function get_user_by_subid($subid)
+    {
+        $query=$this->db->query("SELECT u.*,nama_subid FROM `users` u left join sub_bidang s on u.id_subid=s.id_subid WHERE u.id_subid='$subid' and u.status_user='SPV/Staf' and u.status_akun='Aktif' ");
+        return $query->result();
+    }
+
+    // query kpi staf
+
+    function get_sum_bobot_Staf($id_user,$bulan,$tahun)
+    {
+        $query=$this->db->query("select sum(bobot) bobot,count(id_ik) jumlah_ik from kpi k where k.id_user='$id_user' and month(k.tanggal)='$bulan' and year(k.tanggal)='$tahun' ");
+        return $query->row();
+    }
+
+    function get_ip_staf($id_user,$bulan,$tahun)
+    {
+        $query=$this->db->query("select k.nilai,k.target_bobot,k.indeks,k.bobot from kpi k inner join master_ik ik on k.id_ik=ik.id_ik where k.id_user='$id_user' and month(k.tanggal)='$bulan' and year(k.tanggal)='$tahun' ");
+        return $query->result();
+    }
+
+    function get_bobot_ipk_staf($id_user,$i,$tahun)
+    {
+        $query=$this->db->query("select sum(bobot) bobot from kpi k where k.id_user='$id_user' and month(k.tanggal)='$i' and year(k.tanggal)='$tahun' ");
+        return $query->row();
+    }
+
+    function get_ipk_staf($id_user,$i,$tahun,$bobotipk)
+    {
+        $query=$this->db->query("select round(sum((k.bobot*k.indeks)/$bobotipk),2) as IP from kpi k   where  k.id_user='$id_user' and year(k.tanggal)='$tahun' and month(k.tanggal)='$i' ");
+        return $query->row();
+    }
+
+    function get_ip_staf_cs($id_user,$bulan,$tahun)
+    {
+        $query=$this->db->query("select k.nilai,k.indeks,k.bobot from challenge_session_staf k inner join master_ik ik on k.id_ik=ik.id_ik where k.id_user='$id_user' and bulan=$bulan and tahun='$tahun' group by k.id_ik ");
+        return $query->result();
+    }
+
+     function get_bobot_ipk_staf_cs($id_user,$i,$tahun)
+    {
+        //$query=$this->db->query("select sum(bobot) bobot from challenge_session_staf k where k.id_user='$id_user' and month(k.tanggal_cs)='$i' and year(k.tanggal_cs)='$tahun'  ");
+        $query=$this->db->query("select sum(bobot) as bobot from 
+                        ( select bobot from challenge_session_staf k where k.id_user='$id_user' and bulan=$i and tahun='$tahun' group by id_ik)  as sub  ");
+        return $query->row();
+    }
+
+    function get_ipk_staf_cs($id_user,$i,$tahun,$bobotipk)
+    {
+        $query=$this->db->query("select round(sum(n_IP),2) as IP from
+                (select ((k.bobot*k.indeks)/$bobotipk) as n_IP from challenge_session_staf k   where  k.id_user='$id_user' and tahun='$tahun' and bulan=$i group by k.id_ik order by id_cs DESC) as sub  ");
+        return $query->row();
+    }
+    // end query kpi staf
+
+    function get_belum_verifikasi($id_user,$bulan,$tahun)
+    {
+        $query=$this->db->query("SELECT count(*) as belum_verifikasi FROM `kpi` WHERE id_user='$id_user' and verifikasi='N' and month(tanggal)='$bulan' and year(tanggal)='$tahun' ");
+        return $query->row();
+    }
+    function get_lock_upload($id_user)
+    {
+        $query=$this->db->query("select deadline,lock_upload from users where id_user='$id_user' ");
+        return $query->row();
+    }
+
+
+    //==============================================================================================
+    //KPI DM
+
+    function get_sum_bobot_dm_new($id_user,$bulan,$tahun)
+    {
+        $query=$this->db->query("select sum(bobot) as total_bobot, count(id_prosedur) as jumlah_prosedur from eviden_dm where id_user='$id_user' and month(tanggal_upload)='$bulan' and year(tanggal_upload)='$tahun'  ");
+        return $query->row();
+    }
+    function get_belum_verifikasi_dm($id_user,$bulan,$tahun)
+    {
+        $query=$this->db->query("SELECT count(*) as belum_verifikasi FROM `eviden_dm` WHERE id_user='$id_user' and verifikasi='N' and month(tanggal_upload)='$bulan' and year(tanggal_upload)='$tahun' ");
+        return $query->row();
+    }
+
+    function get_eviden_dm_bulanan($id_user,$bulan,$tahun)
+    {
+        $query=$this->db->query("SELECT mp.nama_prosedur,e.dokumen,e.tanggal_upload FROM `eviden_dm` e join master_prosedur mp on e.id_prosedur=mp.id_prosedur WHERE id_user='$id_user' and month(`tanggal_upload`)='$bulan' and year(`tanggal_upload`)='$tahun' order by tanggal_upload DESC");
+        return $query->result();
+    }
+
+    function get_nilai_dm($id_user,$bln,$thn)
+    {
+        $query=$this->db->query("select k.nilai,k.indeks,k.bobot from eviden_dm k  where k.id_user='$id_user' and month(k.tanggal_upload)='$bln' and year(k.tanggal_upload)='$thn' ");
+        return $query->result();
+    }
+
+
+    function get_data_dm($id_user)
+    {
+        $query=$this->db->query("SELECT u.*,nama_subid,(select count(id_prosedur) from detail_prosedur where id_user='$id_user') as jumlah_prosedur from users u left join sub_bidang s on u.id_subid=s.id_subid where u.id_user='$id_user' ");
+        return $query->row();
+    }
+    function get_jumlah_prosedur($id_user)
+    {
+        $query=$this->db->query("select count(id_prosedur) jumlah_prosedur from detail_prosedur where id_user='$id_user' ");
+        return $query->row();
+    }
+    function get_prosedur_dm($id_user)
+    {
+        $query=$this->db->query("select dp.id_user,p.id_prosedur,p.id_indikator,i.indikator,p.nomor,p.nama_prosedur,p.berlaku,p.revisi,p.dokumen,p.status,p.bobot from detail_prosedur dp inner join master_prosedur p on dp.id_prosedur=p.id_prosedur left join master_indikator i on p.id_indikator=i.id_indikator   where p.status='1' and id_user='$id_user' ");
+        return $query->result();
+    }
+
+    function get_sum_bobot_dm($id_subid)
+    {
+        $query=$this->db->query("select sum(mi.bobot) as bobot from users u inner join detail_ik d on u.id_user=d.id_user inner join master_ik mi on d.id_ik=mi.id_ik where u.id_subid='$id_subid'  ");
+        return $query->row();
+    }
+
+    function get_kpi_dm($id_user,$bulan,$tahun)
+    {
+        $query=$this->db->query("select id_kpidm,nilai,kpi,target_bobot,indeks,evidence,tgl_laporan from  kpi_dm  where id_user='$id_user' and month(tgl_laporan)='$bulan' and year(tgl_laporan)='$tahun'  ");
+        return $query->row();
+    }
+
+    function get_bobot_perbulan($id_user,$bulan,$tahun)
+    {
+        $query=$this->db->query("select sum(target_bobot) bobot from kpi_dm k where k.id_user='$id_user' and month(k.tanggal)='$i' and year(k.tanggal)='$tahun' ");
+        return $query->row();
+    }
+
+    function get_ipk_dm_new($id_user,$bulan,$tahun,$bobot)
+    {
+        $query=$this->db->query("select round(sum((k.bobot*k.indeks)/$bobot),2) as IP from eviden_dm k   where  k.id_user='$id_user' and year(k.tanggal_upload)='$tahun' and month(k.tanggal_upload)='$bulan' ");
+        return $query->row();
+    }
+
+    function get_ipk_dm($id_user,$i,$bulan,$tahun)
+    {
+        $query=$this->db->query(" SELECT avg(indeks) as ipk FROM `kpi_dm` WHERE id_user='$id_user' and year(tgl_laporan)='$tahun' and month(tgl_laporan) between '$i' and '$bulan' ");
+        return $query->row();
+    }
+    function get_ip_dm($id_user,$bulan,$tahun)
+    {
+        $query=$this->db->query(" SELECT indeks as ip FROM `kpi_dm` WHERE id_user='$id_user' and year(tgl_laporan)='$tahun' and month(tgl_laporan)='$bulan' ");
+        return $query->row();
+    }
+    function get_eviden_dm($id_user,$tahun)
+    {
+        $query=$this->db->query("SELECT evidence,tgl_laporan FROM `kpi_dm` WHERE id_user='$id_user' and year(`tgl_laporan`)='$tahun' order by tgl_laporan DESC");
+        return $query->result();
+    }
+    
+
+    function kpi_bulanan_dm($id_user,$tahun)
+    {
+        $query = $this->db->query("select
+      ifnull((SELECT indeks from kpi_dm  WHERE((Month(tgl_laporan)=1)AND (YEAR(tgl_laporan)='$tahun' ) and id_user='$id_user' )),0) AS `Januari`,
+      ifnull((SELECT indeks from kpi_dm  WHERE((Month(tgl_laporan)=2)AND (YEAR(tgl_laporan)='$tahun' ) and id_user='$id_user' )),0) AS `Februari`,
+      ifnull((SELECT indeks from kpi_dm  WHERE((Month(tgl_laporan)=3)AND (YEAR(tgl_laporan)='$tahun' ) and id_user='$id_user' )),0) AS `Maret`,
+      ifnull((SELECT indeks from kpi_dm  WHERE((Month(tgl_laporan)=4)AND (YEAR(tgl_laporan)='$tahun' ) and id_user='$id_user' )),0) AS `April`,
+      ifnull((SELECT indeks from kpi_dm  WHERE((Month(tgl_laporan)=5)AND (YEAR(tgl_laporan)='$tahun' ) and id_user='$id_user' )),0) AS `Mei`,
+      ifnull((SELECT indeks from kpi_dm  WHERE((Month(tgl_laporan)=6)AND (YEAR(tgl_laporan)='$tahun' ) and id_user='$id_user' )),0) AS `Juni`,
+      ifnull((SELECT indeks from kpi_dm  WHERE((Month(tgl_laporan)=7)AND (YEAR(tgl_laporan)='$tahun' ) and id_user='$id_user' )),0) AS `Juli`,
+      ifnull((SELECT indeks from kpi_dm  WHERE((Month(tgl_laporan)=8)AND (YEAR(tgl_laporan)='$tahun' ) and id_user='$id_user' )),0) AS `Agustus`,
+      ifnull((SELECT indeks from kpi_dm  WHERE((Month(tgl_laporan)=9)AND (YEAR(tgl_laporan)='$tahun' ) and id_user='$id_user' )),0) AS `September`,
+      ifnull((SELECT indeks from kpi_dm  WHERE((Month(tgl_laporan)=10)AND (YEAR(tgl_laporan)='$tahun' ) and id_user='$id_user' )),0) AS `Oktober`,
+      ifnull((SELECT indeks from kpi_dm  WHERE((Month(tgl_laporan)=11)AND (YEAR(tgl_laporan)='$tahun' ) and id_user='$id_user' )),0) AS `November`,
+      ifnull((SELECT indeks from kpi_dm  WHERE((Month(tgl_laporan)=12)AND (YEAR(tgl_laporan)='$tahun' ) and id_user='$id_user' )),0) AS `Desember`
+
+      from kpi_dm GROUP BY year(tgl_laporan)='$tahun' and id_user='$id_user'");
+        return $query->row_array();
+    }
+
+     // insert data
+    function insert_laporan_dm($data)
+    {
+        $this->db->insert('kpi_dm', $data);
+    }
+
+    // update data
+    function update_laporan_dm($id, $data)
+    {
+        $this->db->where('id_kpidm', $id);
+        $this->db->update('kpi_dm', $data);
+    }
+
+     function insert_eviden_dm($data)
+    {
+        $this->db->insert('eviden_dm', $data);
+    }
+
+    // update data
+    function update_eviden_dm($id, $data)
+    {
+        $this->db->where('id_eviden', $id);
+        $this->db->update('eviden_dm', $data);
+    }
+    function get_eviden_dm_new($id_user,$id_prosedur,$bulan,$tahun)
+    {
+        $query=$this->db->query("SELECT id_eviden,bobot,indeks,nilai,dokumen,tanggal_upload,verifikasi FROM `eviden_dm` WHERE id_user='$id_user' and id_prosedur='$id_prosedur' and year(tanggal_upload)='$tahun' and month(tanggal_upload)='$bulan' ");
+        return $query->row();
+    }
+
+    //=================================================================================================================
+    //KPI MB
+    function get_user_by_bidang($id_bidang)
+    {
+        $query=$this->db->query("SELECT u.*,s.id_subid,s.nama_subid,b.nama_bidang FROM `users` u left join sub_bidang s on u.id_subid=s.id_subid left join bidang b on u.id_bidang=b.id_bidang WHERE u.id_bidang='$id_bidang' and u.status_user='DM'  ");
+        return $query->result();
+    }
+
+    function get_belum_verifikasi_mb($id_user,$bulan,$tahun)
+    {
+        $query=$this->db->query("SELECT count(*) as belum_verifikasi FROM `eviden_mb` WHERE id_user='$id_user' and verifikasi='N' and month(tanggal_upload)='$bulan' and year(tanggal_upload)='$tahun' ");
+        return $query->row();
+    }
+
+    function get_indikator_mb($id_bidang)
+    {
+        $query=$this->db->query("select p.id_indikator,i.indikator,i.bobot from detail_prosedur dp inner join master_prosedur p on dp.id_prosedur=p.id_prosedur left join master_indikator i on p.id_indikator=i.id_indikator inner join users u on u.id_user=dp.id_user  where u.id_bidang='$id_bidang' group by id_indikator ");
+        return $query->result();
+    }
+
+    function get_indikator_mb_new($id_bidang)
+    {
+       $query=$this->db->query("SELECT * FROM `master_indikator` WHERE id_bidang = ".$id_bidang." and status = 'Aktif'");
+        return $query->result();
+    }
+
+    function get_nilai_mb($id_user,$bln,$thn)
+    {
+        $query=$this->db->query("select k.nilai,k.indeks,k.bobot from eviden_mb k  where k.id_user='$id_user' and month(k.tanggal_upload)='$bln' and year(k.tanggal_upload)='$thn' ");
+        return $query->result();
+    }
+
+
+    function get_data_mb($id_user)
+    {
+        $query=$this->db->query("SELECT u.*,s.id_bidang,s.nama_bidang from users u left join bidang s on u.id_bidang=s.id_bidang where u.id_user='$id_user' ");
+        return $query->row();
+    }
+
+    function get_sum_bobot_mb_new($id_user,$bulan,$tahun)
+    {
+        $query=$this->db->query("select sum(bobot) as total_bobot, count(id_indikator) as jumlah_indikator from eviden_mb where id_user='$id_user' and month(tanggal_upload)='$bulan' and year(tanggal_upload)='$tahun'  ");
+        return $query->row();
+    }
+
+    function get_ipk_mb_new($id_user,$bulan,$tahun,$bobot)
+    {
+        $query=$this->db->query("select round(sum((k.bobot*k.indeks)/$bobot),2) as IP from eviden_mb k   where  k.id_user='$id_user' and year(k.tanggal_upload)='$tahun' and month(k.tanggal_upload)='$bulan' ");
+        return $query->row();
+    }
+
+    function get_sum_bobot_mb($id_bidang)
+    {
+        $query=$this->db->query("select sum(mi.bobot) as bobot from users u inner join detail_prosedur d on u.id_user=d.id_user inner join master_prosedur mi on d.id_prosedur=mi.id_prosedur where u.id_bidang='$id_bidang'  ");
+        return $query->row();
+    }
+
+    function get_kpi_mb($id_user,$bulan,$tahun)
+    {
+        $query=$this->db->query("select id_kpimb,nilai,kpi,target_bobot,indeks,evidence,tgl_laporan from  kpi_mb  where id_user='$id_user' and month(tgl_laporan)='$bulan' and year(tgl_laporan)='$tahun'  ");
+        return $query->row();
+    }
+
+    function kpi_bulanan_mb($id_user,$tahun)
+    {
+        $query = $this->db->query("select
+      ifnull((SELECT indeks from kpi_mb  WHERE((Month(tgl_laporan)=1)AND (YEAR(tgl_laporan)='$tahun' ) and id_user='$id_user' )),0) AS `Januari`,
+      ifnull((SELECT indeks from kpi_mb  WHERE((Month(tgl_laporan)=2)AND (YEAR(tgl_laporan)='$tahun' ) and id_user='$id_user' )),0) AS `Februari`,
+      ifnull((SELECT indeks from kpi_mb  WHERE((Month(tgl_laporan)=3)AND (YEAR(tgl_laporan)='$tahun' ) and id_user='$id_user' )),0) AS `Maret`,
+      ifnull((SELECT indeks from kpi_mb  WHERE((Month(tgl_laporan)=4)AND (YEAR(tgl_laporan)='$tahun' ) and id_user='$id_user' )),0) AS `April`,
+      ifnull((SELECT indeks from kpi_mb  WHERE((Month(tgl_laporan)=5)AND (YEAR(tgl_laporan)='$tahun' ) and id_user='$id_user' )),0) AS `Mei`,
+      ifnull((SELECT indeks from kpi_mb  WHERE((Month(tgl_laporan)=6)AND (YEAR(tgl_laporan)='$tahun' ) and id_user='$id_user' )),0) AS `Juni`,
+      ifnull((SELECT indeks from kpi_mb  WHERE((Month(tgl_laporan)=7)AND (YEAR(tgl_laporan)='$tahun' ) and id_user='$id_user' )),0) AS `Juli`,
+      ifnull((SELECT indeks from kpi_mb  WHERE((Month(tgl_laporan)=8)AND (YEAR(tgl_laporan)='$tahun' ) and id_user='$id_user' )),0) AS `Agustus`,
+      ifnull((SELECT indeks from kpi_mb  WHERE((Month(tgl_laporan)=9)AND (YEAR(tgl_laporan)='$tahun' ) and id_user='$id_user' )),0) AS `September`,
+      ifnull((SELECT indeks from kpi_mb  WHERE((Month(tgl_laporan)=10)AND (YEAR(tgl_laporan)='$tahun' ) and id_user='$id_user' )),0) AS `Oktober`,
+      ifnull((SELECT indeks from kpi_mb  WHERE((Month(tgl_laporan)=11)AND (YEAR(tgl_laporan)='$tahun' ) and id_user='$id_user' )),0) AS `November`,
+      ifnull((SELECT indeks from kpi_mb  WHERE((Month(tgl_laporan)=12)AND (YEAR(tgl_laporan)='$tahun' ) and id_user='$id_user' )),0) AS `Desember`
+
+      from kpi_mb GROUP BY year(tgl_laporan)='$tahun' and id_user='$id_user'");
+        return $query->row_array();
+    }
+
+     function get_ip_mb($id_user,$bulan,$tahun)
+    {
+        $query=$this->db->query(" SELECT indeks as ip FROM `kpi_mb` WHERE id_user='$id_user' and year(tgl_laporan)='$tahun' and month(tgl_laporan)='$bulan' ");
+        return $query->row();
+    }
+    function get_eviden_bulanan_mb($id_user,$bulan,$tahun)
+    {
+        $query=$this->db->query("SELECT a.indikator,e.dokumen,e.tanggal_upload FROM `eviden_mb` e inner join master_indikator a on e.id_indikator=a.id_indikator WHERE e.id_user='$id_user' and month(`tanggal_upload`)='$bulan' and year(`tanggal_upload`)='$tahun' order by e.tanggal_upload DESC");
+        return $query->result();
+    }
+
+    function get_kpi_bulanan_mb($id_user,$bulan,$tahun,$bobot)
+    {
+        $query=$this->db->query("SELECT round((sum((k.nilai*k.bobot)/100)*100)/$bobot,2) as pencapaian_kpi from  eviden_mb k   WHERE Month(k.tanggal_upload)='$bulan' AND YEAR(k.tanggal_upload)='$tahun'  and k.id_user='$id_user'");
+        return $query->row();
+    }
+
+    function get_ip_bulanan_mb($id_user,$bulan,$tahun,$bobot)
+    {
+        $query=$this->db->query("SELECT round(sum((k.indeks*k.bobot)/$bobot),2) as ip from  eviden_mb k   WHERE Month(k.tanggal_upload)='$bulan' AND YEAR(k.tanggal_upload)='$tahun'  and k.id_user='$id_user' ");
+        return $query->row();
+    }
+
+    function get_eviden_mb_new($id_user,$id_indikator,$bulan,$tahun)
+    {
+        $query=$this->db->query("SELECT id_eviden,bobot,indeks,nilai,dokumen,tanggal_upload,verifikasi FROM `eviden_mb` WHERE id_user='$id_user' and id_indikator='$id_indikator'  and year(tanggal_upload)='$tahun' and month(tanggal_upload)='$bulan' ");
+        return $query->row();
+    }
+
+
+     // insert data
+    function insert_laporan_mb($data)
+    {
+        $this->db->insert('eviden_mb', $data);
+    }
+
+    // update data
+    function update_laporan_mb($id, $data)
+    {
+        // $this->db->where('id_kpimb', $id);
+        // $this->db->update('kpi_mb', $data);
+        $this->db->where('id_eviden', $id);
+        $this->db->update('eviden_mb', $data);
+    }
+
+
+    //=================================================================================================================
+    //KPI ALL Pegawai
+    function get_all_mb($id_unit)
+    {
+        $query=$this->db->query("SELECT u.*,b.id_bidang,b.nama_bidang,un.kelas FROM `users` u left join bidang b on u.id_bidang=b.id_bidang left join unit un on u.id_unit=un.id_unit WHERE  u.status_user='MB' and u.id_unit='$id_unit'  ");
+        return $query->result();
+    }
+    function get_all_md_pengadaan($id_unit)
+    {
+        $query=$this->db->query("SELECT u.*,s.id_subid,s.nama_subid,b.nama_bidang FROM `users` u left join sub_bidang s on u.id_subid=s.id_subid left join bidang b on u.id_bidang=b.id_bidang WHERE u.id_bidang='4' and u.status_user='DM' and u.id_unit='$id_unit'  ");
+        return $query->result();
+    }
+
+     function get_all_md($id_bidang,$id_unit)
+    {
+        $query=$this->db->query("SELECT u.*,s.id_subid,s.nama_subid,b.nama_bidang FROM `users` u left join sub_bidang s on u.id_subid=s.id_subid left join bidang b on u.id_bidang=b.id_bidang WHERE u.id_bidang='$id_bidang' and u.status_user='DM' and u.id_unit='$id_unit'  ");
+        return $query->result();
+    }
+	
+	 function get_all_md2()
+    {
+        $query=$this->db->query("SELECT u.*,s.id_subid,s.nama_subid,b.nama_bidang FROM `users` u left join sub_bidang s on u.id_subid=s.id_subid left join bidang b on u.id_bidang=b.id_bidang WHERE  u.status_user='DM'");
+        return $query->result();
+    }
+
+    function get_all_deputi($id_unit)
+    {
+        $query=$this->db->query("SELECT u.nama_user,u.id_user,s.nama_subid,b.nama_bidang FROM `users` u left join sub_bidang s on u.id_subid=s.id_subid left join bidang b on u.id_bidang=b.id_bidang WHERE u.status_user='DM' and u.id_unit='$id_unit'  ");
+        return $query->result();
+    }
+
+    function get_all_staf($id_bidang,$id_unit)
+    {
+        $query=$this->db->query("SELECT u.*,s.id_subid,s.nama_subid,b.nama_bidang FROM `users` u left join sub_bidang s on u.id_subid=s.id_subid left join bidang b on u.id_bidang=b.id_bidang WHERE u.id_bidang='$id_bidang' and u.status_user='SPV/Staf' and u.id_unit='$id_unit'  ");
+        return $query->result();
+    }
+	
+	function get_all_staf2()
+    {
+        $query=$this->db->query("SELECT u.*,s.id_subid,s.nama_subid,b.nama_bidang FROM `users` u left join sub_bidang s on u.id_subid=s.id_subid left join bidang b on u.id_bidang=b.id_bidang WHERE  u.status_user='SPV/Staf' ");
+        return $query->result();
+    }
+
+
+    function get_all_staf_model($id_unit)
+    {
+        $query=$this->db->query("SELECT u.nama_user,u.id_user,s.nama_subid,b.nama_bidang FROM `users` u left join sub_bidang s on u.id_subid=s.id_subid left join bidang b on u.id_bidang=b.id_bidang WHERE  u.status_user='SPV/Staf' and u.id_unit='$id_unit'  ");
+        return $query->result();
+    }
+
+     function update_prosedur($id, $data)
+    {
+        $this->db->where('id_prosedur', $id);
+        $this->db->update('master_prosedur', $data);
+    }
+    function update_ik($id, $data)
+    {
+        $this->db->where('id_ik', $id);
+        $this->db->update('master_ik', $data);
+    }
+	
+	function get_beban($unit){
+        $data = $this->db->query('select * from beban where unit='.$unit.' order by id_beban desc ');
+        return $data->row();
+    }
+	
+	function get_batubara($unit,$bulan){
+        $data = $this->db->query('SELECT * FROM `batubara` WHERE unit = "'.$unit.'" and month(tanggal)="'.$bulan.'" order by id_stok desc limit 1 ');
+        return $data->row();
+    }
+    
+
+}
+
+/* End of file Pelanggan_model.php */
+/* Location: ./application/models/M_common.php */
