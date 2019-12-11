@@ -178,9 +178,6 @@ function GetMessage_post (){
 
 
 
-
-
-
 function UpdateProfil_post(){
     
     
@@ -236,9 +233,7 @@ function UpdateProfil_post(){
 
 
 function UpdateBank_post(){
-    
-    
-   
+       
     $idClient = $this->post('idClient');
     $fullname = $this->post('fullname');
     $bankName = $this->post('bankName');
